@@ -1,0 +1,215 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>College Event Hub</title>
+
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial;margin:0;background:#eef2ff;color:#1e293b}
+header{background:linear-gradient(120deg,#312e81,#9333ea);color:white;text-align:center;padding:25px}
+.container{max-width:800px;margin:auto;padding:15px}
+.card{background:white;padding:15px;margin:12px 0;border-radius:12px;border-left:5px solid #8b5cf6;box-shadow:0 3px 8px #ddd}
+input,select,button{width:100%;padding:12px;margin:6px 0;border:1px solid #ccc;border-radius:7px}
+button{background:#6d28d9;color:white;border:0;cursor:pointer}
+button:hover{background:#4c1d95}
+h2{color:#6d28d9}
+#message{font-weight:bold;color:green}
+small{color:#64748b}
+</style>
+</head>
+
+<body>
+<header>
+<h1>🎓 College Event Hub</h1>
+<p>Search, Register and Manage Events</p>
+</header>
+
+<div class="container">
+<h2>🔍 College Events</h2>
+
+<input id="search" placeholder="Search event name">
+
+<select id="category">
+<option value="">All Categories</option>
+<option>Technical</option>
+<option>Cultural</option>
+<option>Sports</option>
+<option>Workshop</option>
+</select>
+
+<input type="date" id="date">
+<div id="events"></div>
+
+<h2>📝 Student Registration</h2>
+
+<form id="regForm">
+<input id="name" placeholder="Student Name" required>
+<input id="sid" placeholder="Student ID" required>
+<input id="email" type="email" placeholder="Email Address" required>
+
+<select id="eventId" required>
+<option value="">Select Event</option>
+</select>
+
+<button type="submit">Register Now</button>
+</form>
+
+<p id="message" role="status"></p>
+
+<h2>📋 My Registrations</h2>
+<input id="myId" placeholder="Enter Student ID">
+<button onclick="showMine()">View My Events</button>
+<div id="mine"></div>
+</div>
+
+<script>
+const events = [
+{id:1,name:"Web Development",date:"2026-11-05",
+venue:"Computer Lab",category:"Technical",
+description:"Learn HTML, CSS and JavaScript",capacity:50},
+
+{id:2,name:"Cultural Fest",date:"2026-11-15",
+venue:"Auditorium",category:"Cultural",
+description:"Dance, Music and Fun",capacity:30},
+
+{id:3,name:"AI Workshop",date:"2026-11-25",
+venue:"Seminar Hall",category:"Workshop",
+description:"Explore Artificial Intelligence",capacity:50},
+
+{id:4,name:"Sports Day",date:"2026-12-01",
+venue:"College Ground",category:"Sports",
+description:"Games and sports competitions",capacity:50}
+];
+
+let registrations = JSON.parse(
+ localStorage.getItem("eventRegs") || "[]"
+);
+
+function save(){
+ localStorage.setItem("eventRegs",JSON.stringify(registrations));
+}
+
+function count(id){
+ return registrations.filter(r=>r.eventId===id).length;
+}
+
+function displayEvents(){
+ let s=document.getElementById("search").value.toLowerCase();
+ let c=document.getElementById("category").value;
+ let d=document.getElementById("date").value;
+
+ let list=events.filter(e=>
+ e.name.toLowerCase().includes(s)&&
+ (!c||e.category===c)&&
+ (!d||e.date===d)
+ );
+
+ document.getElementById("events").innerHTML=list.map(e=>`
+ <div class="card">
+ <h3>🎉 ${e.name}</h3>
+ <p>📅 ${e.date}</p>
+ <p>📍 ${e.venue}</p>
+ <p>Category: ${e.category}</p>
+ <p>${e.description}</p>
+ <p><b>Registered: ${count(e.id)} / ${e.capacity}</b></p>
+ <p><small>${count(e.id)>=e.capacity?"FULL":"Seats available"}</small></p>
+ <button onclick="details(${e.id})">View Details</button>
+ </div>
+ `).join("")||"No events found.";
+
+ document.getElementById("eventId").innerHTML=
+ '<option value="">Select Event</option>'+
+ events.map(e=>`
+ <option value="${e.id}" ${count(e.id)>=e.capacity?"disabled":""}>
+ ${e.name} (${count(e.id)>=e.capacity?"FULL":"OPEN"})
+ </option>`).join("");
+}
+
+function details(id){
+ let e=events.find(e=>e.id===id);
+ alert("Event: "+e.name+
+ "\nDate: "+e.date+
+ "\nVenue: "+e.venue+
+ "\nCategory: "+e.category+
+ "\nDescription: "+e.description+
+ "\nCapacity: "+e.capacity);
+}
+
+document.getElementById("regForm").onsubmit=function(ev){
+ ev.preventDefault();
+
+ let name=document.getElementById("name").value.trim();
+ let sid=document.getElementById("sid").value.trim();
+ let email=document.getElementById("email").value.trim().toLowerCase();
+ let id=Number(document.getElementById("eventId").value);
+ let e=events.find(e=>e.id===id);
+ let msg=document.getElementById("message");
+
+ if(!name||!sid||!email||!e){
+ msg.textContent="Please fill all required fields!";
+ return;
+ }
+
+ if(registrations.some(r=>
+ r.eventId===id&&
+ (r.sid.toLowerCase()===sid.toLowerCase()||r.email===email)
+ )){
+ msg.textContent="Already registered for this event!";
+ return;
+ }
+
+ if(count(id)>=e.capacity){
+ msg.textContent="Sorry! Event is full.";
+ return;
+ }
+
+ registrations.push({name,sid,email,eventId:id});
+ save();
+ this.reset();
+ msg.textContent="Registration successful! 🎉";
+ displayEvents();
+};
+
+function showMine(){
+ let sid=document.getElementById("myId").value.trim().toLowerCase();
+
+ if(!sid){
+ document.getElementById("mine").textContent="Enter your Student ID.";
+ return;
+ }
+
+ let list=registrations.filter(r=>r.sid.toLowerCase()===sid);
+ document.getElementById("mine").innerHTML=list.map(r=>{
+ let e=events.find(e=>e.id===r.eventId);
+ return `<div class="card">
+ <b>${r.name}</b>
+ <p>${e?e.name:"Event unavailable"}</p>
+ <p>${r.email}</p>
+ <button onclick="cancelReg('${r.sid.replace(/'/g,"\\'")}',${r.eventId})">Cancel Registration</button>
+ </div>`;
+ }).join("")||"No registrations found.";
+}
+
+function cancelReg(sid,eventId){
+ if(!confirm("Cancel this registration?"))return;
+
+ registrations=registrations.filter(r=>
+ !(r.sid===sid&&r.eventId===eventId)
+ );
+ save();
+ showMine();
+ displayEvents();
+ document.getElementById("message").textContent="Registration cancelled.";
+}
+
+document.getElementById("search").oninput=displayEvents;
+document.getElementById("category").onchange=displayEvents;
+document.getElementById("date").onchange=displayEvents;
+
+displayEvents();
+</script>
+</body>
+</html>
